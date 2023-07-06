@@ -11,9 +11,6 @@ module.exports = {
             doctorId: {
                 type: Sequelize.INTEGER
             },
-            doctorId: {
-                type: Sequelize.INTEGER
-            },
             clinicId: {
                 type: Sequelize.INTEGER
             },
