@@ -1,6 +1,7 @@
 import db from "../../models/index";
 require('dotenv').config();
-import _, { reject } from 'lodash'
+import _ from 'lodash';
+import emailService from '../services/emailService'
 
 const MAX_NUMBER_SCHEDULE = process.env.MAX_NUMBER_SCHEDULE
 
@@ -53,13 +54,13 @@ let getAllDoctors = () => {
 }
 
 let checkReruiredFields = (inputData) => {
-    let arrFields = ['doctorId','contentHTML','contentMarkdown','action',
-    'selectedPrice','selectedPayment','selectProvince','nameClinic',
-    'addressClinic','note','specialtyId'];
+    let arrFields = ['doctorId', 'contentHTML', 'contentMarkdown', 'action',
+        'selectedPrice', 'selectedPayment', 'selectProvince', 'nameClinic',
+        'addressClinic', 'note', 'specialtyId'];
     let isValid = true;
     let element = '';
-    for(let i = 0; i < arrFields.length; i++){
-        if(!inputData[arrFields[i]]){
+    for (let i = 0; i < arrFields.length; i++) {
+        if (!inputData[arrFields[i]]) {
             isValid = false;
             element = arrFields[i];
             break;
@@ -368,6 +369,95 @@ let getProfileDoctorById = (inputId) => {
         }
     })
 }
+
+let getListPatientForDoctor = (doctorId, date) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (!doctorId || !date) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'Missing required parameter!'
+                })
+            }
+            else {
+
+                let data = await db.Booking.findAll({
+                    where: {
+                        statusId: 'S2',
+                        doctorId: doctorId,
+                        date: date
+                    },
+                    include: [
+                        {
+                            model: db.User,
+                            as: 'patientData',
+                            attributes: ['email', 'firstName', 'address', 'gender'],
+                            include: [
+                                {
+                                    model: db.Allcode,
+                                    as: 'genderData',
+                                    attributes: ['valueVi', 'valueEn']
+                                },
+                            ],
+                        },
+                        {
+                            model: db.Allcode,
+                            as: 'timeTypeDataPatient',
+                            attributes: ['valueVi', 'valueEn']
+                        }
+                    ],
+                    raw: false,
+                    nest: true
+                })
+                resolve({
+                    errCode: 0,
+                    data: data
+                })
+
+            }
+        } catch (e) {
+            reject(e)
+        }
+    })
+}
+
+let sendRemedy = (data) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            if (!data.email || !data.doctorId || !data.patientId || !data.timeType) {
+                resolve({
+                    errCode: 1,
+                    errMessage: 'Missing required parameter!'
+                })
+            }
+            else {
+                //update patient status
+                let appoinment = await db.Booking.findOne({
+                    where: {
+                        doctorId: data.doctorId,
+                        patientId: data.patientId,
+                        timeType: data.timeType,
+                        statusId: 'S2'
+                    },
+                    raw: false
+                })
+                if(appoinment){
+                    appoinment.statusId = 'S3';
+                    await appoinment.save()
+                }
+                //send email remedy
+                await emailService.sendAttachment(data)
+                resolve({
+                    errCode: 0,
+                    errMessage: 'OK'
+                })
+
+            }
+        } catch (e) {
+            reject(e)
+        }
+    })
+}
 module.exports = {
     getTopDoctorHome: getTopDoctorHome,
     getAllDoctors: getAllDoctors,
@@ -376,5 +466,7 @@ module.exports = {
     bulkCreateSchedule: bulkCreateSchedule,
     getScheduleByDate: getScheduleByDate,
     getExtraInforDoctorById: getExtraInforDoctorById,
-    getProfileDoctorById: getProfileDoctorById
+    getProfileDoctorById: getProfileDoctorById,
+    getListPatientForDoctor: getListPatientForDoctor,
+    sendRemedy: sendRemedy,
 }

@@ -21,10 +21,6 @@ let sendSimpleEmail = async (dataSend) => {
     })
 }
 
-async function main() {
-
-
-}
 
 // main().catch(console.error);
 let getBodyHTMLEmail = (dataSend) => {
@@ -66,6 +62,58 @@ let getBodyHTMLEmail = (dataSend) => {
     return result;
 }
 
+let getBodyHTMLEmailRemedy = (dataSend) => {
+    let result = '';
+    if (dataSend.language === 'vi') {
+        result =
+            `
+        <h3>Xin chào ${dataSend.patientName}</h3>
+        <p>Bạn nhận được email này vì đã đặt lịch khám bệnh online trên Booking Care thành công</p>
+        <p>Thông tin đơn thuốc/hóa đơn được gửi trong file đính kèm</p>
+
+        <div>Xin chân thành cảm ơn</div>
+
+        `
+    }
+    if (dataSend.language === 'en') {
+        result =
+            `
+        <h3>Dear ${dataSend.patientName}</h3>
+        <p>You received this email because you booked an online medical appointment on Booking Care</p>
+        <div>Thank you</div>
+
+        `
+    }
+    return result;
+}
+
+let sendAttachment = async(dataSend) => {
+    let transporter = nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 587,
+        secure: false,
+        auth: {
+            user: process.env.EMAIL_APP,
+            pass: process.env.EMAIL_APP_PASSWORD
+        },
+    })
+
+    let info = await transporter.sendMail({
+        from: '"Minh PK👻" <minh.phambku51@hcmut.edu.vn>', // sender address
+        to: dataSend.email,   //"bar@example.com, baz@example.com",  list of receivers
+        subject: "Kết quả đặt lịch khám bệnh", // Subject line
+        // text: "Hello world?", // plain text body
+        html: getBodyHTMLEmailRemedy(dataSend), // html body
+        attachments:[
+            {
+                filename: `remedy-${dataSend.patientId}-${new Date().getTime()}.png`,
+                content: dataSend.imgBase64.split("base64,")[1],
+                encoding: 'base64'
+            },
+        ],
+    })
+}
 module.exports = {
     sendSimpleEmail: sendSimpleEmail,
+    sendAttachment: sendAttachment,
 }
